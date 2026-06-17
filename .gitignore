@@ -1,0 +1,17 @@
+# IDEs and editors
+.idea/
+.vscode/
+*.swp
+*.iml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Python caches
+__pycache__/
+*.pyc
+
+# Local config/secret files
+.env
+.codex
