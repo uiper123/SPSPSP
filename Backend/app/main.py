@@ -42,4 +42,7 @@ except Exception as e:
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="[IP_ADDRESS]", port=8000)
+    import os
+    host = os.getenv("API_HOST", "0.0.0.0")
+    port = int(os.getenv("API_PORT", "8000"))
+    uvicorn.run(app, host=host, port=port)
