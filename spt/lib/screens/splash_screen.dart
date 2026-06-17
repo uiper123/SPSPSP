@@ -27,6 +27,7 @@ class _SplashScreen extends State<SplashScreen> {
         if (mounted) {
           context.router.replace(WelcomeRoute());
         }
+        return;
       }
       final result = await InternetAddress.lookup('google.com');
       if (result.isNotEmpty && result[0].rawAddress.isNotEmpty) {
