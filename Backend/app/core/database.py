@@ -18,7 +18,7 @@ if DB_PASSWORD:
 else:
     encoded_password = ""
     
-DATABASE_URL = f"mysql+pymysql://{DB_USER}:{encoded_password}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+DATABASE_URL = f"mysql+pymysql://{DB_USER}:{encoded_password}@{DB_HOST}:{DB_PORT}/{DB_NAME}?charset=utf8mb4"
 
 connect_args = {}
 if os.getenv("RENDER"):
