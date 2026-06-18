@@ -114,11 +114,7 @@ class _OverlaySnackBarWidgetState extends State<_OverlaySnackBarWidget>
                 color: Colors.transparent,
                 child: Container(
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF2E2D32), Color(0xFF1E1E22)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
+                    color: const Color(0xFF2E2D32),
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
