@@ -1,3 +1,4 @@
 class ApiConstants {
-  static const String baseUrl = 'https://spotfynder.dpdns.org';
+  static const String baseUrl = 'http://spotfynderup.duckdns.org:8000';
 }
+
