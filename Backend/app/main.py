@@ -9,6 +9,7 @@ try:
     from fastapi.staticfiles import StaticFiles
     from fastapi.middleware.cors import CORSMiddleware
 
+    try:
         Base.metadata.create_all(bind=engine)
         print("Database tables created successfully!")
         
