@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException
 import urllib.error
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.core.database import get_db
 from app.schemas import UserBase, UserResponse, RoleCreate, RoleResponse, UserLogin, Token, PlaceCreate, PlaceResponse, StatusCreate, StatusResponse, CategoryCreate, CategoryResponse, ReportPlacesCreate, ReportPlacesResponse, TypeReportCreate, TypeReportResponse, FavoritesCreate, FavoritesResponse, CommentPlacesCreate, CommentPlacesResponse, UserUpdateMe, UserUpdateAdmin, PlaceUpdateMe, PlaceUpdateAdmin, PlaceCreateAdmin, RoleUpdate, CategoryUpdate, StatusUpdate, TypeReportUpdate, PlaceUpdateStatusModer, UserBanModer, CommentPlacesUpdate, FilterPlaceGet, UserRegister, PlaceSearchResponse, CommentWithAuthorResponse, RouteCreate, RouteUpdate, RouteResponse, RoutePathResponse, CommentRoutesCreate, CommentRoutesWithAuthorResponse
 from app.crud import get_user_by_email, create_user_register, get_role, create_role, create_place, get_status, create_status, get_category, create_category, create_report_places, get_type_report, create_type_report, create_favorites, get_favorites_by_user, create_comment_places, get_comments_by_place, update_user, get_user, update_user, update_place, delete_image, delete_place, delete_user, delete_role, delete_category, delete_status, delete_report_places, update_role, update_category, update_status, update_type_report, delete_favorites, update_user_ban_moder, delete_comment_places, update_comment_places, get_place_filters, create_route, get_route, get_all_routes, update_route, delete_route, create_comment_route, get_comments_by_route, get_comment_route, delete_comment_route, build_route_path_response
 from app.core.securety import create_access_token, verify_password, get_current_user, password_needs_rehash
 from app.core.securety import get_password_hash
-from app.models import Place, User, Role, Status, Category, ReportPlaces, TypeReport, Favorites, CommentPlaces, CommentRoutes, Route
+from app.models import Place, User, Role, Status, Category, ReportPlaces, TypeReport, Favorites, CommentPlaces, CommentRoutes, Route, ImagePlaces, RoutePlaces
 from typing import List
 
 router = APIRouter()
@@ -238,7 +238,13 @@ def get_places_filter(place: FilterPlaceGet = Depends(), db: Session = Depends(g
 def get_my_places(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if not current_user:
         raise HTTPException(status_code=401, detail="Необходимо авторизоваться")
-    places = db.query(Place).filter(Place.id_user == current_user.id).all()
+    places = db.query(Place).options(
+        joinedload(Place.images),
+        joinedload(Place.comments),
+        joinedload(Place.category),
+        joinedload(Place.user),
+        joinedload(Place.status),
+    ).filter(Place.id_user == current_user.id).all()
     result = []
     for p in places:
         all_images = [img.image for img in p.images] if p.images else []
@@ -436,7 +442,13 @@ def get_favorites_me(db: Session = Depends(get_db), current_user: User = Depends
     place_ids = [f.id_place for f in user_favorites]
     if not place_ids:
         return []
-    places = db.query(Place).filter(Place.id.in_(place_ids)).all()
+    places = db.query(Place).options(
+        joinedload(Place.images),
+        joinedload(Place.comments),
+        joinedload(Place.category),
+        joinedload(Place.user),
+        joinedload(Place.status),
+    ).filter(Place.id.in_(place_ids)).all()
     result = []
     for p in places:
         all_images = [img.image for img in p.images] if p.images else []
@@ -508,9 +520,14 @@ def create_new_comment_places(comment_places: CommentPlacesCreate, db: Session =
 @router.get("/comment_places", response_model=list[CommentWithAuthorResponse])
 def get_comment_places(id_place: int, db: Session = Depends(get_db)):
     comments = db.query(CommentPlaces).filter(CommentPlaces.id_place == id_place).all()
+    user_ids = list({c.id_user for c in comments})
+    users_map = {}
+    if user_ids:
+        users = db.query(User).filter(User.id.in_(user_ids)).all()
+        users_map = {u.id: u for u in users}
     result = []
     for c in comments:
-        user = db.query(User).filter(User.id == c.id_user).first()
+        user = users_map.get(c.id_user)
         author = f"{user.first_name} {user.last_name}" if user else ""
         result.append(CommentWithAuthorResponse(
             id=c.id,
@@ -557,25 +574,40 @@ def get_type_reports_list(db: Session = Depends(get_db)):
 
 @router.get("/images/{image_id}")
 def serve_image(image_id: str, db: Session = Depends(get_db)):
-    from app.models import ImageStorage
-    from fastapi.responses import Response
+    from fastapi.responses import FileResponse, Response
     import base64
-    
+    import os
+
+    # 1. Try serving from disk first (fast)
+    file_path = os.path.join("app", "static", "images", f"{image_id}.jpg")
+    if os.path.exists(file_path):
+        return FileResponse(
+            file_path,
+            media_type="image/jpeg",
+            headers={"Cache-Control": "public, max-age=86400"},
+        )
+
+    # 2. Fallback: serve from DB (for not-yet-migrated images)
+    from app.models import ImageStorage
     db_img = db.query(ImageStorage).filter(ImageStorage.id == image_id).first()
     if not db_img:
         raise HTTPException(status_code=404, detail="Image not found")
-        
+
     b64_data = db_img.base64_data
     if "," in b64_data:
         b64_data = b64_data.split(",")[1]
-        
+
     missing_padding = len(b64_data) % 4
     if missing_padding:
-        b64_data += '=' * (4 - missing_padding)
-        
+        b64_data += "=" * (4 - missing_padding)
+
     try:
         img_bytes = base64.b64decode(b64_data)
-        return Response(content=img_bytes, media_type="image/jpeg")
+        return Response(
+            content=img_bytes,
+            media_type="image/jpeg",
+            headers={"Cache-Control": "public, max-age=86400"},
+        )
     except Exception:
         raise HTTPException(status_code=500, detail="Failed to decode image")
 
@@ -723,9 +755,14 @@ def create_new_comment_route(comment: CommentRoutesCreate, db: Session = Depends
 @router.get("/comment_routes", response_model=list[CommentRoutesWithAuthorResponse])
 def get_route_comments(id_route: int, db: Session = Depends(get_db)):
     comments = get_comments_by_route(db=db, id_route=id_route)
+    user_ids = list({c.id_user for c in comments})
+    users_map = {}
+    if user_ids:
+        users = db.query(User).filter(User.id.in_(user_ids)).all()
+        users_map = {u.id: u for u in users}
     result = []
     for c in comments:
-        user = db.query(User).filter(User.id == c.id_user).first()
+        user = users_map.get(c.id_user)
         result.append(CommentRoutesWithAuthorResponse(
             id=c.id,
             id_route=c.id_route,
@@ -791,11 +828,17 @@ def get_my_favorite_routes(db: Session = Depends(get_db), current_user: User = D
         Favorites.id_user == current_user.id,
         Favorites.id_route != None
     ).all()
+    route_ids = [fav.id_route for fav in favs]
+    if not route_ids:
+        return []
+    routes = db.query(Route).options(
+        joinedload(Route.user),
+        joinedload(Route.places).joinedload(RoutePlaces.place).joinedload(Place.images),
+        joinedload(Route.comments),
+    ).filter(Route.id.in_(route_ids)).all()
     result = []
-    for fav in favs:
-        route = db.query(Route).filter(Route.id == fav.id_route).first()
-        if route:
-            result.append(_build_route_response(db, route))
+    for route in routes:
+        result.append(_build_route_response(db, route))
     return result
 
 

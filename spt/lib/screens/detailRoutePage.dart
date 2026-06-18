@@ -323,6 +323,7 @@ class _DetailRoutePageState extends State<DetailRoutePage> {
         (_currentUser!.id == route.idUser || _currentUser!.id_role == 2);
 
     return Scaffold(
+      backgroundColor: Colors.white,
       body: CustomScrollView(
         slivers: [
           SliverAppBar(

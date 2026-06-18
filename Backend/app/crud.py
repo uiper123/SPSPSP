@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from app.models import User, Role, Place, ImagePlaces, Category, CommentPlaces, Status, ReportPlaces, TypeReport, Favorites, Route, RoutePlaces, CommentRoutes
 from app.schemas import UserRegister, RoleCreate, RoleUpdate, PlaceCreate, PlaceCreateAdmin, PlaceImageCreate, PlaceCategoryCreate, CommentPlacesCreate, CommentPlacesUpdate, UserUpdateAdmin, UserUpdateMe, PlaceUpdateAdmin, PlaceUpdateMe, PlaceUpdateStatusModer, StatusCreate, StatusUpdate, CategoryCreate, CategoryUpdate, TypeReportCreate, TypeReportUpdate, ReportPlacesCreate, FavoritesCreate, FilterPlaceGet, PlaceSearchResponse, UserBanModer, RouteCreate, RouteUpdate, RouteResponse, RoutePlaceItem, RoutePathPoint, RoutePathResponse, CommentRoutesCreate
@@ -208,21 +208,31 @@ def update_place(db: Session, place: PlaceUpdateMe | PlaceUpdateAdmin | PlaceUpd
     db.refresh(db_place)
     return db_place
 
-def save_image(db: Session, base64_image: str):
+def _save_base64_to_disk(base64_image: str) -> str:
+    """Декодирует base64 и сохраняет как файл. Возвращает путь /static/images/{id}.jpg"""
     file_id = str(uuid.uuid4())
-    from app.models import ImageStorage
-    db_img = ImageStorage(id=file_id, base64_data=base64_image)
-    db.add(db_img)
-    db.commit()
-    return f'/api/images/{file_id}'
+    images_dir = os.path.join("app", "static", "images")
+    os.makedirs(images_dir, exist_ok=True)
+
+    data = base64_image
+    if "," in data:
+        data = data.split(",", 1)[1]
+    missing_padding = len(data) % 4
+    if missing_padding:
+        data += "=" * (4 - missing_padding)
+
+    img_bytes = base64.b64decode(data)
+    file_path = os.path.join(images_dir, f"{file_id}.jpg")
+    with open(file_path, "wb") as f:
+        f.write(img_bytes)
+
+    return f'/static/images/{file_id}.jpg'
+
+def save_image(db: Session, base64_image: str):
+    return _save_base64_to_disk(base64_image)
 
 def save_image_avatar(db: Session, base64_image: str):
-    file_id = str(uuid.uuid4())
-    from app.models import ImageStorage
-    db_img = ImageStorage(id=file_id, base64_data=base64_image)
-    db.add(db_img)
-    db.commit()
-    return f'/api/images/{file_id}'
+    return _save_base64_to_disk(base64_image)
 
 def create_place_image(db: Session, place_image: PlaceImageCreate):
     db_place_image = ImagePlaces(
@@ -254,7 +264,13 @@ def delete_place(db: Session, place_id: int):
     return db_place
 
 def get_place_filters(db: Session, place: FilterPlaceGet):
-    query = db.query(Place)
+    query = db.query(Place).options(
+        joinedload(Place.images),
+        joinedload(Place.comments),
+        joinedload(Place.category),
+        joinedload(Place.user),
+        joinedload(Place.status),
+    )
     
     if place.id is not None:
         query = query.filter(Place.id == place.id)
@@ -560,7 +576,7 @@ def update_comment_places(db: Session, comment_places: CommentPlacesUpdate, comm
 
 
 def _build_route_response(db: Session, route: Route) -> RouteResponse:
-    user = db.query(User).filter(User.id == route.id_user).first()
+    user = route.user if route.user else db.query(User).filter(User.id == route.id_user).first()
     author_name = f"{user.first_name} {user.last_name}" if user else ""
     author_avatar = user.avatar if user else None
 
@@ -623,7 +639,11 @@ def get_route(db: Session, route_id: int):
 
 
 def get_all_routes(db: Session):
-    return db.query(Route).order_by(Route.created_at.desc()).all()
+    return db.query(Route).options(
+        joinedload(Route.user),
+        joinedload(Route.places).joinedload(RoutePlaces.place).joinedload(Place.images),
+        joinedload(Route.comments),
+    ).order_by(Route.created_at.desc()).all()
 
 
 def _parse_route_coordinate(raw_coordinates: str | None):

@@ -73,81 +73,90 @@ class _FloatingNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(left: 16, right: 16, bottom: 14),
+      padding: EdgeInsets.only(left: 16, right: 16, bottom: MediaQuery.of(context).padding.bottom + 10),
       child: SizedBox(
         height: _barHeight + _fabSize / 2 + _notchMargin,
         child: Stack(
           alignment: Alignment.bottomCenter,
           clipBehavior: Clip.none,
           children: [
-            // Bar with notch
-            CustomPaint(
-              size: Size(double.infinity, _barHeight),
-              painter: _NotchedBarPainter(
-                notchRadius: _fabSize / 2 + _notchMargin,
-                cornerRadius: 32,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    AppColors.colorlight.withOpacity(0.88),
-                    AppColors.colordark.withOpacity(0.92),
-                  ],
-                ),
-                borderColor: Colors.white.withOpacity(0.15),
-                shadowColor: AppColors.colordark.withOpacity(0.5),
-              ),
-              child: SizedBox(
-                height: _barHeight,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    Expanded(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _buildNavItem(
-                            icon: Icons.map_outlined,
-                            activeIcon: Icons.map_rounded,
-                            index: 0,
-                          ),
-                          _buildNavItem(
-                            icon: Icons.search_rounded,
-                            activeIcon: Icons.search_rounded,
-                            index: 1,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 72),
-                    Expanded(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _buildNavItem(
-                            icon: Icons.star_border_rounded,
-                            activeIcon: Icons.star_rounded,
-                            index: 3,
-                          ),
-                          _buildNavItem(
-                            icon: Icons.route_outlined,
-                            activeIcon: Icons.route_rounded,
-                            index: 5,
-                          ),
-                          _buildNavItem(
-                            icon: Icons.person_outline_rounded,
-                            activeIcon: Icons.person_rounded,
-                            index: 4,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+            // Bar background (notched shape only — no child clipping)
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: _barHeight,
+              child: CustomPaint(
+                painter: _NotchedBarPainter(
+                  notchRadius: _fabSize / 2 + _notchMargin,
+                  cornerRadius: 32,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppColors.colorlight.withOpacity(0.88),
+                      AppColors.colordark.withOpacity(0.92),
+                    ],
+                  ),
+                  borderColor: Colors.white.withOpacity(0.15),
+                  shadowColor: AppColors.colordark.withOpacity(0.5),
                 ),
               ),
             ),
-            // FAB button
-            Positioned(top: 0, child: _buildCenterButton(context)),
+            // Nav items row — lives outside CustomPaint so highlights aren't clipped
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: _barHeight,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  Expanded(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _buildNavItem(
+                          icon: Icons.map_outlined,
+                          activeIcon: Icons.map_rounded,
+                          index: 0,
+                        ),
+                        _buildNavItem(
+                          icon: Icons.search_rounded,
+                          activeIcon: Icons.search_rounded,
+                          index: 1,
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(width: _fabSize + _notchMargin * 2 + 16),
+                  Expanded(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _buildNavItem(
+                          icon: Icons.star_border_rounded,
+                          activeIcon: Icons.star_rounded,
+                          index: 3,
+                        ),
+                        _buildNavItem(
+                          icon: Icons.route_outlined,
+                          activeIcon: Icons.route_rounded,
+                          index: 5,
+                        ),
+                        _buildNavItem(
+                          icon: Icons.person_outline_rounded,
+                          activeIcon: Icons.person_rounded,
+                          index: 4,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // FAB button — raised 10px above the bar top
+            Positioned(top: -10, child: _buildCenterButton(context)),
           ],
         ),
       ),

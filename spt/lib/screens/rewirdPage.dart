@@ -289,6 +289,7 @@ class _RewidPageState extends State<RewidPage>
             height: MediaQuery.of(context).size.height * 0.2,
           ),
           SafeArea(
+            bottom: false,
             child: Column(
               children: [
                 Padding(

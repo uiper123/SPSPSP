@@ -403,6 +403,7 @@ class _RoutesPageState extends State<RoutesPage> {
             height: MediaQuery.of(context).size.height * 0.22,
           ),
           SafeArea(
+            bottom: false,
             child: Column(
               children: [
                 Padding(
