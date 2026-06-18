@@ -9,8 +9,8 @@ import os
 import binascii
 from datetime import datetime
 import json
+import httpx
 import urllib.parse
-import urllib.request
 
 
 def get_role(db: Session, role_id: int):
@@ -660,7 +660,7 @@ def _parse_route_coordinate(raw_coordinates: str | None):
         return None
 
 
-def build_route_path_response(route: Route) -> RoutePathResponse | None:
+async def build_route_path_response(route: Route) -> RoutePathResponse | None:
     route_places = sorted(route.places, key=lambda item: item.position)
     osrm_coordinates = []
     for route_place in route_places:
@@ -686,16 +686,16 @@ def build_route_path_response(route: Route) -> RoutePathResponse | None:
     )
     request_url = f"{osrm_base_url.rstrip('/')}/route/v1/driving/{coordinates_query}?{query}"
 
-    request = urllib.request.Request(
-        request_url,
+    async with httpx.AsyncClient(
+        timeout=10,
         headers={
             "User-Agent": "Spotfynder/1.0",
             "Accept": "application/json",
-        }
-    )
-
-    with urllib.request.urlopen(request, timeout=10) as response:
-        payload = json.loads(response.read().decode("utf-8"))
+        },
+    ) as client:
+        response = await client.get(request_url)
+        response.raise_for_status()
+        payload = response.json()
 
     routes = payload.get("routes")
     if not routes:

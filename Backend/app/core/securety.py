@@ -21,6 +21,12 @@ REFRESH_TOKEN_EXPIRE_MINUTES = int(os.getenv("REFRESH_TOKEN_EXPIRE_MINUTES", "60
 security_scheme = HTTPBearer()
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+ENABLE_LEGACY_SHA256_PASSWORD_FALLBACK = os.getenv("ENABLE_LEGACY_SHA256_PASSWORD_FALLBACK", "false").lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 
 def hash_password_sha256(password: str):
     return hashlib.sha256(password.encode('utf-8')).hexdigest()
@@ -35,15 +41,19 @@ def _verify_password_value(password_value: str, hashed_password: str):
         return False
 
 def verify_password(password: str, hashed_password: str):
-    return (
-        _verify_password_value(password, hashed_password) or
-        _verify_password_value(hash_password_sha256(password), hashed_password)
-    )
+    verified, _ = verify_password_and_needs_rehash(password, hashed_password)
+    return verified
+
+def verify_password_and_needs_rehash(password: str, hashed_password: str):
+    if _verify_password_value(password, hashed_password):
+        return True, False
+    if ENABLE_LEGACY_SHA256_PASSWORD_FALLBACK and _verify_password_value(hash_password_sha256(password), hashed_password):
+        return True, True
+    return False, False
 
 def password_needs_rehash(password: str, hashed_password: str):
-    if _verify_password_value(password, hashed_password):
-        return False
-    return _verify_password_value(hash_password_sha256(password), hashed_password)
+    _, needs_rehash = verify_password_and_needs_rehash(password, hashed_password)
+    return needs_rehash
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()

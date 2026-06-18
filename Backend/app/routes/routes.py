@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
-import urllib.error
+import httpx
 from sqlalchemy.orm import Session, joinedload
 from app.core.database import get_db
 from app.schemas import UserBase, UserResponse, RoleCreate, RoleResponse, UserLogin, Token, PlaceCreate, PlaceResponse, StatusCreate, StatusResponse, CategoryCreate, CategoryResponse, ReportPlacesCreate, ReportPlacesResponse, TypeReportCreate, TypeReportResponse, FavoritesCreate, FavoritesResponse, CommentPlacesCreate, CommentPlacesResponse, UserUpdateMe, UserUpdateAdmin, PlaceUpdateMe, PlaceUpdateAdmin, PlaceCreateAdmin, RoleUpdate, CategoryUpdate, StatusUpdate, TypeReportUpdate, PlaceUpdateStatusModer, UserBanModer, CommentPlacesUpdate, FilterPlaceGet, UserRegister, PlaceSearchResponse, CommentWithAuthorResponse, RouteCreate, RouteUpdate, RouteResponse, RoutePathResponse, CommentRoutesCreate, CommentRoutesWithAuthorResponse
 from app.crud import get_user_by_email, create_user_register, get_role, create_role, create_place, get_status, create_status, get_category, create_category, create_report_places, get_type_report, create_type_report, create_favorites, get_favorites_by_user, create_comment_places, get_comments_by_place, update_user, get_user, update_user, update_place, delete_image, delete_place, delete_user, delete_role, delete_category, delete_status, delete_report_places, update_role, update_category, update_status, update_type_report, delete_favorites, update_user_ban_moder, delete_comment_places, update_comment_places, get_place_filters, create_route, get_route, get_all_routes, update_route, delete_route, create_comment_route, get_comments_by_route, get_comment_route, delete_comment_route, build_route_path_response
-from app.core.securety import create_access_token, verify_password, get_current_user, password_needs_rehash
+from app.core.securety import create_access_token, verify_password_and_needs_rehash, get_current_user
 from app.core.securety import get_password_hash
 from app.models import Place, User, Role, Status, Category, ReportPlaces, TypeReport, Favorites, CommentPlaces, CommentRoutes, Route, ImagePlaces, RoutePlaces
 from typing import List
@@ -115,9 +115,16 @@ def update_roles(id: int, role: RoleUpdate, db: Session = Depends(get_db), curre
 @router.post("/login", response_model=Token)
 def login_access_token(user: UserLogin, db: Session = Depends(get_db)):
     db_user = get_user_by_email(db, email=user.email)
-    if not db_user or not verify_password(user.password, db_user.hashed_password):
+    password_verified = False
+    password_requires_rehash = False
+    if db_user:
+        password_verified, password_requires_rehash = verify_password_and_needs_rehash(
+            user.password,
+            db_user.hashed_password,
+        )
+    if not db_user or not password_verified:
         raise HTTPException(status_code=400, detail="Неверный email или пароль")    
-    if password_needs_rehash(user.password, db_user.hashed_password):
+    if password_requires_rehash:
         db_user.hashed_password = get_password_hash(user.password)
         db.add(db_user)
         db.commit()
@@ -684,13 +691,13 @@ def get_one_route(route_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/route/{route_id}/path", response_model=RoutePathResponse)
-def get_route_path(route_id: int, db: Session = Depends(get_db)):
+async def get_route_path(route_id: int, db: Session = Depends(get_db)):
     db_route = get_route(db=db, route_id=route_id)
     if not db_route:
         raise HTTPException(status_code=404, detail="Маршрут не найден")
     try:
-        route_path = build_route_path_response(db_route)
-    except urllib.error.URLError:
+        route_path = await build_route_path_response(db_route)
+    except httpx.HTTPError:
         raise HTTPException(status_code=502, detail="Не удалось получить маршрут по дорогам")
     except Exception:
         raise HTTPException(status_code=502, detail="Не удалось получить маршрут по дорогам")
