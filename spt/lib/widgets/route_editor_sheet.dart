@@ -28,6 +28,7 @@ class _RouteEditorSheetState extends State<RouteEditorSheet> {
   final List<PlotsModel> _selectedPlaces = [];
   bool _isSearching = false;
   bool _isSaving = false;
+  int _displayedPlaceCount = 10;
 
   bool get _isEditing => widget.route != null;
 
@@ -73,6 +74,7 @@ class _RouteEditorSheetState extends State<RouteEditorSheet> {
       setState(() {
         _searchResults = results;
         _isSearching = false;
+        _displayedPlaceCount = 10;
       });
     }
   }
@@ -88,6 +90,7 @@ class _RouteEditorSheetState extends State<RouteEditorSheet> {
       setState(() {
         _searchResults = results;
         _isSearching = false;
+        _displayedPlaceCount = 10;
       });
     }
   }
@@ -109,7 +112,6 @@ class _RouteEditorSheetState extends State<RouteEditorSheet> {
       return;
     }
     final navigator = Navigator.of(context);
-    final messenger = ScaffoldMessenger.of(context);
     setState(() => _isSaving = true);
     final saved = _isEditing
         ? await _routeService.updateRoute(
@@ -256,63 +258,19 @@ class _RouteEditorSheetState extends State<RouteEditorSheet> {
                         child: CircularProgressIndicator(),
                       ),
                     )
-                  else
-                    ..._searchResults.map((place) {
-                      final alreadyAdded = _selectedPlaces.any(
-                        (p) => p.id == place.id,
-                      );
-                      return ListTile(
-                        contentPadding: const EdgeInsets.symmetric(vertical: 4),
-                        leading: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: place.image.isNotEmpty
-                              ? Image.network(
-                                  '${ApiConstants.baseUrl}${place.image}',
-                                  width: 48,
-                                  height: 48,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => Container(
-                                    width: 48,
-                                    height: 48,
-                                    color: Colors.grey[200],
-                                    child: const Icon(Icons.image, size: 20),
-                                  ),
-                                )
-                              : Container(
-                                  width: 48,
-                                  height: 48,
-                                  color: Colors.grey[200],
-                                  child: const Icon(Icons.image, size: 20),
-                                ),
-                        ),
-                        title: Text(
-                          place.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: Text(
-                          place.type.isNotEmpty ? place.type : 'Без категории',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[500],
-                          ),
-                        ),
-                        trailing: alreadyAdded
-                            ? const Icon(
-                                Icons.check_circle,
-                                color: Colors.green,
-                              )
-                            : IconButton(
-                                icon: const Icon(
-                                  Icons.add_circle_outline,
-                                  color: AppColors.accentColor,
-                                ),
-                                onPressed: () {
-                                  setState(() => _selectedPlaces.add(place));
-                                },
-                              ),
-                      );
-                    }),
+                  else ...[
+                    ..._searchResults
+                        .take(_displayedPlaceCount)
+                        .map(_buildAvailablePlaceItem),
+                    if (_searchResults.length > _displayedPlaceCount)
+                      _buildShowMoreButton(
+                        onPressed: () {
+                          setState(() {
+                            _displayedPlaceCount += 10;
+                          });
+                        },
+                      ),
+                  ],
                   const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
@@ -396,6 +354,75 @@ class _RouteEditorSheetState extends State<RouteEditorSheet> {
             constraints: const BoxConstraints(),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAvailablePlaceItem(PlotsModel place) {
+    final alreadyAdded = _selectedPlaces.any((p) => p.id == place.id);
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(vertical: 4),
+      leading: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: place.image.isNotEmpty
+            ? Image.network(
+                '${ApiConstants.baseUrl}${place.image}',
+                width: 48,
+                height: 48,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  width: 48,
+                  height: 48,
+                  color: Colors.grey[200],
+                  child: const Icon(Icons.image, size: 20),
+                ),
+              )
+            : Container(
+                width: 48,
+                height: 48,
+                color: Colors.grey[200],
+                child: const Icon(Icons.image, size: 20),
+              ),
+      ),
+      title: Text(place.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(
+        place.type.isNotEmpty ? place.type : 'Без категории',
+        style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+      ),
+      trailing: alreadyAdded
+          ? const Icon(Icons.check_circle, color: Colors.green)
+          : IconButton(
+              icon: const Icon(
+                Icons.add_circle_outline,
+                color: AppColors.accentColor,
+              ),
+              onPressed: () {
+                setState(() => _selectedPlaces.add(place));
+              },
+            ),
+    );
+  }
+
+  Widget _buildShowMoreButton({required VoidCallback onPressed}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: SizedBox(
+        width: double.infinity,
+        height: 44,
+        child: OutlinedButton(
+          onPressed: onPressed,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.accentColor,
+            side: const BorderSide(color: AppColors.accentColor),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
+          child: const Text(
+            'Показать еще',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
       ),
     );
   }

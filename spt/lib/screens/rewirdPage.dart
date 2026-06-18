@@ -26,6 +26,8 @@ class _RewidPageState extends State<RewidPage>
   final FavoritesService _favoritesService = FavoritesService();
   final RouteService _routeService = RouteService();
   late TabController _tabController;
+  int _displayedFavoritePlacesCount = 10;
+  int _displayedFavoriteRoutesCount = 10;
 
   @override
   void initState() {
@@ -74,6 +76,7 @@ class _RewidPageState extends State<RewidPage>
       setState(() {
         _favorites = favorites;
         _isLoading = false;
+        _displayedFavoritePlacesCount = 10;
       });
     }
   }
@@ -84,6 +87,7 @@ class _RewidPageState extends State<RewidPage>
       setState(() {
         _favoriteRoutes = routes;
         _isRoutesLoading = false;
+        _displayedFavoriteRoutesCount = 10;
       });
     }
   }
@@ -382,9 +386,21 @@ class _RewidPageState extends State<RewidPage>
                 right: 15,
                 bottom: 80,
               ),
-              itemCount: _favorites.length,
-              itemBuilder: (context, index) =>
-                  _buildFavoriteCard(_favorites[index]),
+              itemCount: _favorites.length > _displayedFavoritePlacesCount
+                  ? _displayedFavoritePlacesCount + 1
+                  : _favorites.length,
+              itemBuilder: (context, index) {
+                if (index == _displayedFavoritePlacesCount) {
+                  return _buildShowMoreButton(
+                    onPressed: () {
+                      setState(() {
+                        _displayedFavoritePlacesCount += 10;
+                      });
+                    },
+                  );
+                }
+                return _buildFavoriteCard(_favorites[index]);
+              },
             ),
           );
   }
@@ -415,11 +431,45 @@ class _RewidPageState extends State<RewidPage>
                 right: 15,
                 bottom: 80,
               ),
-              itemCount: _favoriteRoutes.length,
-              itemBuilder: (context, index) =>
-                  _buildFavoriteRouteCard(_favoriteRoutes[index]),
+              itemCount: _favoriteRoutes.length > _displayedFavoriteRoutesCount
+                  ? _displayedFavoriteRoutesCount + 1
+                  : _favoriteRoutes.length,
+              itemBuilder: (context, index) {
+                if (index == _displayedFavoriteRoutesCount) {
+                  return _buildShowMoreButton(
+                    onPressed: () {
+                      setState(() {
+                        _displayedFavoriteRoutesCount += 10;
+                      });
+                    },
+                  );
+                }
+                return _buildFavoriteRouteCard(_favoriteRoutes[index]);
+              },
             ),
           );
+  }
+
+  Widget _buildShowMoreButton({required VoidCallback onPressed}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.accentColor,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          elevation: 0,
+        ),
+        child: const Text(
+          'Показать еще',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+      ),
+    );
   }
 
   Widget _buildFavoriteRouteCard(RouteModel route) {

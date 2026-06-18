@@ -791,3 +791,23 @@ def get_my_favorite_routes(db: Session = Depends(get_db), current_user: User = D
         if route:
             result.append(_build_route_response(db, route))
     return result
+
+
+@router.get("/admin/routes", response_model=list[RouteResponse])
+def admin_get_all_routes(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if current_user.id_role != 2:
+        raise HTTPException(status_code=403, detail="Недостаточно прав")
+    from app.crud import _build_route_response
+    routes = db.query(Route).order_by(Route.id.desc()).all()
+    return [_build_route_response(db, r) for r in routes]
+
+
+@router.delete("/admin/route/{route_id}")
+def admin_delete_route(route_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if current_user.id_role != 2:
+        raise HTTPException(status_code=403, detail="Недостаточно прав")
+    route = db.query(Route).filter(Route.id == route_id).first()
+    if not route:
+        raise HTTPException(status_code=404, detail="Маршрут не найден")
+    delete_route(db=db, route_id=route_id)
+    return {"message": "Маршрут удалён"}

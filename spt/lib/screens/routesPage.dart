@@ -23,6 +23,7 @@ class _RoutesPageState extends State<RoutesPage> {
   bool _isLoggedIn = false;
   final RouteService _routeService = RouteService();
   final TextEditingController _searchController = TextEditingController();
+  int _displayedRouteCount = 10;
 
   @override
   void initState() {
@@ -51,6 +52,7 @@ class _RoutesPageState extends State<RoutesPage> {
               r.authorName.toLowerCase().contains(query);
         }).toList();
       }
+      _displayedRouteCount = 10;
     });
   }
 
@@ -68,6 +70,7 @@ class _RoutesPageState extends State<RoutesPage> {
         _routes = routes;
         _filteredRoutes = routes;
         _isLoading = false;
+        _displayedRouteCount = 10;
       });
     }
   }
@@ -508,9 +511,16 @@ class _RoutesPageState extends State<RoutesPage> {
                                 16,
                                 100,
                               ),
-                              itemCount: _filteredRoutes.length,
-                              itemBuilder: (context, index) =>
-                                  _buildRouteCard(_filteredRoutes[index]),
+                              itemCount:
+                                  _filteredRoutes.length > _displayedRouteCount
+                                  ? _displayedRouteCount + 1
+                                  : _filteredRoutes.length,
+                              itemBuilder: (context, index) {
+                                if (index == _displayedRouteCount) {
+                                  return _buildShowMoreRoutesButton();
+                                }
+                                return _buildRouteCard(_filteredRoutes[index]);
+                              },
                             ),
                           ),
                   ),
@@ -534,6 +544,32 @@ class _RoutesPageState extends State<RoutesPage> {
               ),
             ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildShowMoreRoutesButton() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 20),
+      child: ElevatedButton(
+        onPressed: () {
+          setState(() {
+            _displayedRouteCount += 10;
+          });
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.accentColor,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          elevation: 0,
+        ),
+        child: const Text(
+          'Показать еще',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
       ),
     );
   }

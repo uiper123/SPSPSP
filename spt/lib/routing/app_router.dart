@@ -31,10 +31,10 @@ class AppRouter extends RootStackRouter {
       page: MainRoute.page,
       children: [
         AutoRoute(page: MapRoute.page),
-        AutoRoute(page: ProfileRoute.page),
         AutoRoute(page: SearchRoute.page),
-        AutoRoute(page: RewidRoute.page),
         AutoRoute(page: AddPlaceRoute.page),
+        AutoRoute(page: RewidRoute.page),
+        AutoRoute(page: ProfileRoute.page),
         AutoRoute(page: RoutesRoute.page),
       ],
     ),

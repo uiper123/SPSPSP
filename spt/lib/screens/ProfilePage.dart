@@ -50,6 +50,8 @@ class _ProfilePageState extends State<ProfilePage> {
   List<RouteModel> _myRoutes = [];
   bool _myRoutesLoading = true;
   int _favoritesCount = 0;
+  int _displayedMyPlacesCount = 10;
+  int _displayedMyRoutesCount = 10;
 
   int _pendingCount = 0;
   int _reportsCount = 0;
@@ -63,6 +65,7 @@ class _ProfilePageState extends State<ProfilePage> {
   List<ReportPlacesModel> _reports = [];
   List<UserModel> _users = [];
   List<PlotsModel> _allPlaces = [];
+  List<RouteModel> _allRoutes = [];
 
   int _categoriesCount = 0;
   List<CategoryModel> _categories = [];
@@ -114,6 +117,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final approved = await _adminService.getPlacesByStatus(2);
     final declined = await _adminService.getPlacesByStatus(3);
     final reports = await _adminService.getReports();
+    final routes = await _adminService.getAllRoutes();
 
     if (mounted) {
       setState(() {
@@ -127,6 +131,7 @@ class _ProfilePageState extends State<ProfilePage> {
         _reportsCount = reports.length;
         _allPlaces = [...pending, ...approved, ...declined];
         _allPlacesCount = _allPlaces.length;
+        _allRoutes = routes;
       });
     }
 
@@ -185,6 +190,7 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() {
       _myPlaces = places;
       _myPlacesLoading = false;
+      _displayedMyPlacesCount = 10;
     });
   }
 
@@ -194,6 +200,7 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() {
       _myRoutes = routes;
       _myRoutesLoading = false;
+      _displayedMyRoutesCount = 10;
     });
   }
 
@@ -613,11 +620,13 @@ class _ProfilePageState extends State<ProfilePage> {
               title: 'У вас ещё нет мест',
               subtitle: 'Добавьте первое место, нажав на кнопку + на главной',
             )
-          else
+          else ...[
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: _myPlaces.length,
+              itemCount: _myPlaces.length > _displayedMyPlacesCount
+                  ? _displayedMyPlacesCount
+                  : _myPlaces.length,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
                 childAspectRatio: 0.78,
@@ -629,6 +638,15 @@ class _ProfilePageState extends State<ProfilePage> {
                 return _buildMyPlaceCard(place);
               },
             ),
+            if (_myPlaces.length > _displayedMyPlacesCount)
+              _buildProfileShowMoreButton(
+                onPressed: () {
+                  setState(() {
+                    _displayedMyPlacesCount += 10;
+                  });
+                },
+              ),
+          ],
           const SizedBox(height: 28),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -657,9 +675,43 @@ class _ProfilePageState extends State<ProfilePage> {
               title: 'У вас ещё нет маршрутов',
               subtitle: 'Соберите маршрут из двух или более мест',
             )
-          else
-            ..._myRoutes.map(_buildMyRouteCard),
+          else ...[
+            ..._myRoutes.take(_displayedMyRoutesCount).map(_buildMyRouteCard),
+            if (_myRoutes.length > _displayedMyRoutesCount)
+              _buildProfileShowMoreButton(
+                onPressed: () {
+                  setState(() {
+                    _displayedMyRoutesCount += 10;
+                  });
+                },
+              ),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildProfileShowMoreButton({required VoidCallback onPressed}) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: SizedBox(
+        width: double.infinity,
+        height: 46,
+        child: ElevatedButton(
+          onPressed: onPressed,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.accentColor,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
+            elevation: 0,
+          ),
+          child: const Text(
+            'Показать еще',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+        ),
       ),
     );
   }
@@ -1436,6 +1488,13 @@ class _ProfilePageState extends State<ProfilePage> {
                                       icon: Icons.map,
                                       color: Colors.purple,
                                       onTap: () => _showAdminListPage('places'),
+                                    ),
+                                    _buildDashboardCard(
+                                      title: 'Все маршруты',
+                                      count: '${_allRoutes.length}',
+                                      icon: Icons.route_rounded,
+                                      color: Colors.indigo,
+                                      onTap: () => _showAdminListPage('routes'),
                                     ),
                                     _buildDashboardCard(
                                       title: 'Категории',
@@ -2405,9 +2464,22 @@ class _ProfilePageState extends State<ProfilePage> {
 
   void _showAdminListPage(String type) {
     final bool isUsers = type == 'users';
-    final String title = isUsers ? 'Пользователи' : 'Все места';
-    final IconData icon = isUsers ? Icons.people : Icons.map;
-    final Color color = isUsers ? Colors.blue : Colors.purple;
+    final bool isRoutes = type == 'routes';
+    final String title = isUsers
+        ? 'Пользователи'
+        : isRoutes
+        ? 'Все маршруты'
+        : 'Все места';
+    final IconData icon = isUsers
+        ? Icons.people
+        : isRoutes
+        ? Icons.route_rounded
+        : Icons.map;
+    final Color color = isUsers
+        ? Colors.blue
+        : isRoutes
+        ? Colors.indigo
+        : Colors.purple;
     String searchQuery = '';
 
     showModalBottomSheet(
@@ -2429,6 +2501,12 @@ class _ProfilePageState extends State<ProfilePage> {
             final List<PlotsModel> filteredPlaces = _allPlaces.where((p) {
               final val = '${p.name} ${p.status} ${p.type} ${p.authorName}'
                   .toLowerCase();
+              return val.contains(searchQuery.toLowerCase());
+            }).toList();
+
+            final List<RouteModel> filteredRoutes = _allRoutes.where((r) {
+              final places = r.places.map((p) => p.name).join(' ');
+              final val = '${r.name} ${r.authorName} $places'.toLowerCase();
               return val.contains(searchQuery.toLowerCase());
             }).toList();
 
@@ -2480,6 +2558,8 @@ class _ProfilePageState extends State<ProfilePage> {
                               Text(
                                 isUsers
                                     ? '${filteredUsers.length} пользователей'
+                                    : isRoutes
+                                    ? '${filteredRoutes.length} маршрутов'
                                     : '${filteredPlaces.length} мест',
                                 style: TextStyle(
                                   fontSize: 13,
@@ -2535,6 +2615,25 @@ class _ProfilePageState extends State<ProfilePage> {
                                 }
                                 return _buildUserItem(
                                   filteredUsers[index],
+                                  setModalState,
+                                );
+                              },
+                            )
+                          : isRoutes
+                          ? ListView.separated(
+                              controller: scrollController,
+                              padding: const EdgeInsets.all(16),
+                              itemCount: filteredRoutes.length + 1,
+                              separatorBuilder: (_, index) =>
+                                  index < filteredRoutes.length - 1
+                                  ? const SizedBox(height: 8)
+                                  : const SizedBox.shrink(),
+                              itemBuilder: (context, index) {
+                                if (index == filteredRoutes.length) {
+                                  return const SizedBox(height: 120);
+                                }
+                                return _buildAdminRouteItem(
+                                  filteredRoutes[index],
                                   setModalState,
                                 );
                               },
@@ -2773,6 +2872,102 @@ class _ProfilePageState extends State<ProfilePage> {
                   );
                 },
               ),
+      ),
+    );
+  }
+
+  Widget _buildAdminRouteItem(RouteModel route, StateSetter setModalState) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.withOpacity(0.15)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.05),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        leading: Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.indigo.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Icon(Icons.route_rounded, color: Colors.indigo),
+        ),
+        title: Text(
+          route.name,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 2),
+            Text(
+              '${route.places.length} мест · ${route.authorName.isNotEmpty ? route.authorName : 'Пользователь'}',
+              style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (route.places.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Text(
+                route.places.map((p) => p.name).join(' → '),
+                style: TextStyle(fontSize: 10, color: Colors.grey[400]),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ],
+        ),
+        trailing: IconButton(
+          icon: const Icon(Icons.delete_outline, color: Colors.red),
+          onPressed: () async {
+            final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Удалить маршрут?'),
+                    content: Text('Маршрут "${route.name}" будет удалён безвозвратно.'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text('Отмена'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: const Text(
+                          'Удалить',
+                          style: TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    ],
+                  ),
+                ) ??
+                false;
+            if (!confirm) return;
+
+            final ok = await _adminService.deleteRouteAdmin(route.id);
+            if (ok) {
+              await _loadAdminData();
+              setModalState(() {});
+              showFloatingSnackBar(context, 'Маршрут удалён');
+            } else {
+              showFloatingSnackBar(context, 'Ошибка при удалении маршрута');
+            }
+          },
+        ),
+        onTap: () {
+          Navigator.pop(context);
+          context.router.push(DetailRouteRoute(route: route));
+        },
       ),
     );
   }

@@ -4,6 +4,7 @@ import 'package:spt/core/constant/api_constants.dart';
 import 'package:spt/core/auth/token_storage.dart';
 import 'package:spt/models/user_model.dart';
 import 'package:spt/models/plots_model.dart';
+import 'package:spt/models/route_model.dart';
 
 class ReportPlacesModel {
   final int id;
@@ -308,6 +309,40 @@ class AdminService {
           'Authorization': 'Bearer $token',
         },
         body: jsonEncode({'name': name}),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<List<RouteModel>> getAllRoutes() async {
+    final token = await _getToken();
+    if (token == null) return [];
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConstants.baseUrl}/api/admin/routes'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (response.statusCode == 200) {
+        final List<dynamic> decoded = jsonDecode(
+          utf8.decode(response.bodyBytes),
+        );
+        return decoded.map((j) => RouteModel.fromJson(j)).toList();
+      }
+      return [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<bool> deleteRouteAdmin(int routeId) async {
+    final token = await _getToken();
+    if (token == null) return false;
+    try {
+      final response = await http.delete(
+        Uri.parse('${ApiConstants.baseUrl}/api/admin/route/$routeId'),
+        headers: {'Authorization': 'Bearer $token'},
       );
       return response.statusCode == 200;
     } catch (e) {

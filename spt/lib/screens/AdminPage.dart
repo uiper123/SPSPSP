@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
 import 'package:spt/models/user_model.dart';
 import 'package:spt/models/plots_model.dart';
+import 'package:spt/models/route_model.dart';
 import 'package:spt/serv/admin_serv.dart';
 import 'package:spt/core/constant/colors.dart';
 import 'package:spt/core/constant/api_constants.dart';
@@ -26,6 +27,7 @@ class _AdminPageState extends State<AdminPage> {
   List<PlotsModel> _allPlaces = [];
   List<UserModel> _users = [];
   List<ReportPlacesModel> _reports = [];
+  List<RouteModel> _allRoutes = [];
   String _placeFilter = 'all';
 
   @override
@@ -51,14 +53,17 @@ class _AdminPageState extends State<AdminPage> {
     final places = [...pending, ...approved, ...rejected];
     final reports = await _adminService.getReports();
     List<UserModel> usersList = [];
+    List<RouteModel> routesList = [];
     if (user.id_role == 2) {
       usersList = await _adminService.getUsers();
+      routesList = await _adminService.getAllRoutes();
     }
 
     setState(() {
       _allPlaces = places;
       _reports = reports;
       _users = usersList;
+      _allRoutes = routesList;
       _isLoading = false;
     });
   }
@@ -109,6 +114,34 @@ class _AdminPageState extends State<AdminPage> {
       _loadData();
     } else {
       showFloatingSnackBar(context, 'Ошибка');
+    }
+  }
+
+  Future<void> _deleteRouteAdmin(int routeId, String name) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Удалить маршрут?'),
+        content: Text('Маршрут "$name" будет удалён безвозвратно.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Отмена'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Удалить', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    final success = await _adminService.deleteRouteAdmin(routeId);
+    if (success) {
+      showFloatingSnackBar(context, 'Маршрут удалён');
+      _loadData();
+    } else {
+      showFloatingSnackBar(context, 'Ошибка при удалении маршрута');
     }
   }
 
@@ -285,7 +318,7 @@ class _AdminPageState extends State<AdminPage> {
     }
 
     return DefaultTabController(
-      length: _currentUser?.id_role == 2 ? 3 : 2,
+      length: _currentUser?.id_role == 2 ? 4 : 2,
       child: Scaffold(
         appBar: AppBar(
           title: Text(
@@ -304,6 +337,8 @@ class _AdminPageState extends State<AdminPage> {
               Tab(text: 'Жалобы (${_reports.length})'),
               if (_currentUser?.id_role == 2)
                 Tab(text: 'Пользователи (${_users.length})'),
+              if (_currentUser?.id_role == 2)
+                Tab(text: 'Маршруты (${_allRoutes.length})'),
             ],
           ),
         ),
@@ -312,6 +347,7 @@ class _AdminPageState extends State<AdminPage> {
             _buildPlacesTab(),
             _buildReportsTab(),
             if (_currentUser?.id_role == 2) _buildUsersTab(),
+            if (_currentUser?.id_role == 2) _buildRoutesTab(),
           ],
         ),
       ),
@@ -621,6 +657,101 @@ class _AdminPageState extends State<AdminPage> {
             trailing: IconButton(
               icon: const Icon(Icons.more_vert, size: 20, color: Colors.grey),
               onPressed: () => _showUserActionSheet(context, u),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildRoutesTab() {
+    if (_allRoutes.isEmpty) {
+      return const Center(child: Text('Нет маршрутов'));
+    }
+    return ListView.builder(
+      itemCount: _allRoutes.length,
+      padding: const EdgeInsets.all(16),
+      itemBuilder: (context, index) {
+        final route = _allRoutes[index];
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.grey.withOpacity(0.15)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.05),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            leading: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: AppColors.accentColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.route_rounded,
+                color: AppColors.accentColor,
+                size: 22,
+              ),
+            ),
+            title: Text(
+              route.name,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 3),
+                Row(
+                  children: [
+                    const Icon(Icons.person_outline, size: 12, color: Colors.grey),
+                    const SizedBox(width: 3),
+                    Expanded(
+                      child: Text(
+                        route.authorName.isNotEmpty ? route.authorName : 'Пользователь',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    const Icon(Icons.location_on_outlined, size: 12, color: Colors.grey),
+                    const SizedBox(width: 3),
+                    Text(
+                      '${route.places.length} точек',
+                      style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                    ),
+                    if (route.averageRating > 0) ...[
+                      const SizedBox(width: 8),
+                      const Icon(Icons.star, size: 11, color: Colors.amber),
+                      const SizedBox(width: 2),
+                      Text(
+                        route.averageRating.toStringAsFixed(1),
+                        style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+            trailing: IconButton(
+              icon: const Icon(Icons.delete_outline, color: Colors.red, size: 22),
+              tooltip: 'Удалить маршрут',
+              onPressed: () => _deleteRouteAdmin(route.id, route.name),
             ),
           ),
         );
