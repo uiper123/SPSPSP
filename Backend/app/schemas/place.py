@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
 from typing import Optional
 from decimal import Decimal
@@ -149,7 +149,7 @@ class TypeReportResponse(BaseModel):
 
 class CommentPlacesCreate(BaseModel):
     id_place: int
-    estimation: int
+    estimation: int = Field(..., ge=1, le=5)
     comment: str
 
 class CommentPlacesResponse(BaseModel):
@@ -165,7 +165,7 @@ class CommentPlacesResponse(BaseModel):
         from_attributes = True
 
 class CommentPlacesUpdate(BaseModel):
-    estimation: int | None = None
+    estimation: int | None = Field(default=None, ge=1, le=5)
     comment: str | None = None
 
 class CommentWithAuthorResponse(BaseModel):
@@ -256,7 +256,7 @@ class RoutePathResponse(BaseModel):
 
 class CommentRoutesCreate(BaseModel):
     id_route: int
-    estimation: int
+    estimation: int = Field(..., ge=1, le=5)
     comment: str
 
 

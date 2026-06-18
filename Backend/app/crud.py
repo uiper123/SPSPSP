@@ -96,10 +96,12 @@ def delete_user(db: Session, user_id: int):
     db_user = get_user(db, user_id)
     if not db_user:
         return None
-    db_places = db.query(Place).filter(Place.id_user == user_id).all()
-    for place in db_places:
-        delete_place(db, place.id)
+    has_places = db.query(Place).filter(Place.id_user == user_id).first() is not None
+    has_routes = db.query(Route).filter(Route.id_user == user_id).first() is not None
+    if has_places or has_routes:
+        return None
     db.query(CommentPlaces).filter(CommentPlaces.id_user == user_id).delete()
+    db.query(CommentRoutes).filter(CommentRoutes.id_user == user_id).delete()
     db.query(ReportPlaces).filter(ReportPlaces.id_user == user_id).delete()
     db.query(Favorites).filter(Favorites.id_user == user_id).delete()
     db.query(User).filter(User.id == user_id).delete()

@@ -12,6 +12,14 @@ try:
     try:
         Base.metadata.create_all(bind=engine)
         print("Database tables created successfully!")
+
+        try:
+            from app.core.triggers import install_database_triggers
+            install_database_triggers(engine)
+            print("Database triggers installed successfully!")
+        except Exception:
+            print("FAILED TO INSTALL DATABASE TRIGGERS:")
+            traceback.print_exc()
         
         # Seed database
         from sqlalchemy.orm import sessionmaker

@@ -54,7 +54,13 @@ def delete_users(id: int, db: Session = Depends(get_db), current_user: User = De
     db_user = db.query(User).filter(User.id == id).first()
     if not db_user:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
-    return delete_user(db=db, user_id=id)
+    deleted_user = delete_user(db=db, user_id=id)
+    if not deleted_user:
+        raise HTTPException(
+            status_code=400,
+            detail="Удаление невозможно: пользователь имеет активные места или маршруты"
+        )
+    return deleted_user
 
 @router.put("/users/ban/{id}", response_model=UserResponse)
 def update_users_ban_admin(id: int, user: UserBanModer, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
