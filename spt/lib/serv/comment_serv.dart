@@ -61,4 +61,19 @@ class CommentService {
       return false;
     }
   }
+
+  Future<bool> deleteCommentAdmin(int commentId) async {
+    final token = await tokenStorage.readToken();
+    if (token == null) return false;
+
+    try {
+      final response = await http.delete(
+        Uri.parse('${ApiConstants.baseUrl}/api/admin/comment_places/$commentId'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
+  }
 }

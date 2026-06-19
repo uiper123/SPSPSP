@@ -202,6 +202,20 @@ class RouteService {
     }
   }
 
+  Future<bool> deleteCommentAdmin(int commentId) async {
+    final token = await _getToken();
+    if (token == null) return false;
+    try {
+      final response = await http.delete(
+        Uri.parse('${ApiConstants.baseUrl}/api/admin/comment_routes/$commentId'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
+  }
+
   Future<bool> toggleFavorite(int routeId) async {
     final token = await _getToken();
     if (token == null) return false;

@@ -829,7 +829,9 @@ class _DetailRoutePageState extends State<DetailRoutePage> {
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                   onPressed: () async {
-                    final ok = await _routeService.deleteComment(comment.id);
+                    final ok = _currentUser!.id_role == 2
+                        ? await _routeService.deleteCommentAdmin(comment.id)
+                        : await _routeService.deleteComment(comment.id);
                     if (ok) {
                       final fresh = await _routeService.getComments(_route.id);
                       if (mounted) setState(() => _comments = fresh);

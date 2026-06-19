@@ -1398,7 +1398,9 @@ class _DetailPlacePageState extends State<DetailPlacePage> {
                                           ) ?? false;
                                           if (!confirm) return;
 
-                                          final success = await _commentService.deleteComment(comment.id);
+                                          final success = _currentUser!.id_role == 2
+                                              ? await _commentService.deleteCommentAdmin(comment.id)
+                                              : await _commentService.deleteComment(comment.id);
                                           if (success) {
                                             _loadComments();
                                           } else {

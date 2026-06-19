@@ -747,10 +747,16 @@ def delete_route(db: Session, route_id: int):
     db_route = get_route(db, route_id)
     if not db_route:
         return None
-    db.query(Favorites).filter(Favorites.id_route == route_id).delete()
-    db.delete(db_route)
-    db.commit()
-    return db_route
+    try:
+        db.query(Favorites).filter(Favorites.id_route == route_id).delete(synchronize_session=False)
+        db.query(CommentRoutes).filter(CommentRoutes.id_route == route_id).delete(synchronize_session=False)
+        db.query(RoutePlaces).filter(RoutePlaces.id_route == route_id).delete(synchronize_session=False)
+        db.delete(db_route)
+        db.commit()
+        return db_route
+    except Exception:
+        db.rollback()
+        return None
 
 
 def create_comment_route(db: Session, comment: CommentRoutesCreate, id_user: int):

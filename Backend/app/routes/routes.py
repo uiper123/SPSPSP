@@ -563,6 +563,19 @@ def delete_comment_places_by_id(id: int, db: Session = Depends(get_db), current_
     return delete_comment_placess
 
 
+@router.delete("/admin/comment_places/{id}")
+def admin_delete_comment_places(id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if current_user.id_role != 2:
+        raise HTTPException(status_code=403, detail="Недостаточно прав")
+    db_comment_places = db.query(CommentPlaces).filter(CommentPlaces.id == id).first()
+    if not db_comment_places:
+        raise HTTPException(status_code=404, detail="Комментарий не найден")
+    delete_comment_placess = delete_comment_places(db=db, comment_places_id=id)
+    if not delete_comment_placess:
+        raise HTTPException(status_code=400, detail="Не удалось удалить комментарий")
+    return delete_comment_placess
+
+
 
 @router.put("/comment_places/{id}", response_model=CommentPlacesResponse)
 def update_comment_places_by_id(id: int, comment_places: CommentPlacesUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -728,7 +741,9 @@ def delete_existing_route(route_id: int, db: Session = Depends(get_db), current_
         raise HTTPException(status_code=404, detail="Маршрут не найден")
     if db_route.id_user != current_user.id and current_user.id_role != 2:
         raise HTTPException(status_code=403, detail="Недостаточно прав")
-    delete_route(db=db, route_id=route_id)
+    deleted_route = delete_route(db=db, route_id=route_id)
+    if not deleted_route:
+        raise HTTPException(status_code=400, detail="Не удалось удалить маршрут")
     return {"message": "Маршрут успешно удалён"}
 
 
@@ -790,6 +805,17 @@ def delete_route_comment(comment_id: int, db: Session = Depends(get_db), current
         raise HTTPException(status_code=404, detail="Комментарий не найден")
     if db_comment.id_user != current_user.id and current_user.id_role != 2:
         raise HTTPException(status_code=403, detail="Недостаточно прав")
+    delete_comment_route(db=db, comment_id=comment_id)
+    return {"message": "Комментарий удалён"}
+
+
+@router.delete("/admin/comment_routes/{comment_id}")
+def admin_delete_route_comment(comment_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if current_user.id_role != 2:
+        raise HTTPException(status_code=403, detail="Недостаточно прав")
+    db_comment = get_comment_route(db=db, comment_id=comment_id)
+    if not db_comment:
+        raise HTTPException(status_code=404, detail="Комментарий не найден")
     delete_comment_route(db=db, comment_id=comment_id)
     return {"message": "Комментарий удалён"}
 
@@ -865,5 +891,7 @@ def admin_delete_route(route_id: int, db: Session = Depends(get_db), current_use
     route = db.query(Route).filter(Route.id == route_id).first()
     if not route:
         raise HTTPException(status_code=404, detail="Маршрут не найден")
-    delete_route(db=db, route_id=route_id)
+    deleted_route = delete_route(db=db, route_id=route_id)
+    if not deleted_route:
+        raise HTTPException(status_code=400, detail="Не удалось удалить маршрут")
     return {"message": "Маршрут удалён"}
