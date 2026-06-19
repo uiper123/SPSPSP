@@ -560,7 +560,7 @@ def delete_comment_places_by_id(id: int, db: Session = Depends(get_db), current_
     delete_comment_placess = delete_comment_places(db=db, comment_places_id=id)
     if not delete_comment_placess:
         raise HTTPException(status_code=400, detail="Не удалось удалить комментарий")
-    return delete_comment_placess
+    return {"message": "Комментарий удалён"}
 
 
 @router.delete("/admin/comment_places/{id}")
@@ -573,7 +573,7 @@ def admin_delete_comment_places(id: int, db: Session = Depends(get_db), current_
     delete_comment_placess = delete_comment_places(db=db, comment_places_id=id)
     if not delete_comment_placess:
         raise HTTPException(status_code=400, detail="Не удалось удалить комментарий")
-    return delete_comment_placess
+    return {"message": "Комментарий удалён"}
 
 
 

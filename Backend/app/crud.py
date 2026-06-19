@@ -550,6 +550,9 @@ def create_comment_places(db: Session, comment_places: CommentPlacesCreate, id_u
 def get_comments_by_place(db: Session, id_place: int):
     return db.query(CommentPlaces).filter(CommentPlaces.id_place == id_place).all()
 
+def get_comment_places(db: Session, comment_places_id: int):
+    return db.query(CommentPlaces).filter(CommentPlaces.id == comment_places_id).first()
+
 def delete_comment_places(db: Session, comment_places_id: int):
     try:
         db_comment_places = get_comment_places(db, comment_places_id)
